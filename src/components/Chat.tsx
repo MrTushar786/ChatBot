@@ -4,12 +4,13 @@ import { ChatInput } from "./ChatInput";
 import { ConversationSidebar } from "./ConversationSidebar";
 import { useConversations, Message } from "@/hooks/useConversations";
 import { useToast } from "@/hooks/use-toast";
-import { Bot, Settings } from "lucide-react";
+import { useTheme } from "@/contexts/ThemeContext";
+import { Bot, Settings, Palette } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
-const DEFAULT_API_KEY = "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";
+const DEFAULT_API_KEY = "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";
 
 export const Chat = () => {
   const {
@@ -25,10 +26,13 @@ export const Chat = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [apiKey, setApiKey] = useState(DEFAULT_API_KEY);
   const [tempApiKey, setTempApiKey] = useState(DEFAULT_API_KEY);
+  const [model, setModel] = useState("mistralai/mistral-small-3.2-24b-instruct:free");
+  const [tempModel, setTempModel] = useState("mistralai/mistral-small-3.2-24b-instruct:free");
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+  const { currentTheme, setTheme, themes } = useTheme();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -40,10 +44,11 @@ export const Chat = () => {
 
   const saveApiKey = () => {
     setApiKey(tempApiKey);
+    setModel(tempModel);
     setIsSettingsOpen(false);
     toast({
       title: "Success",
-      description: "API key updated successfully."
+      description: "Settings updated successfully."
     });
   };
 
@@ -68,7 +73,7 @@ export const Chat = () => {
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          model: "gpt-oss-20b:free",
+          model: model,
           messages: [
             {
               role: "system",
@@ -83,7 +88,7 @@ export const Chat = () => {
               content: content
             }
           ],
-          temperature: 0.7,
+          temperature: 1,
           max_tokens: 1000
         })
       });
@@ -108,8 +113,10 @@ export const Chat = () => {
       console.error("Error sending message:", error);
       const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
       toast({
-        title: "Error",
-        description: errorMessage.includes("OpenAI is requiring a key") 
+        title: "API Error",
+        description: errorMessage.includes("User not found") || errorMessage.includes("401")
+          ? "Invalid API key or insufficient credits. Please check your OpenRouter API key in settings."
+          : errorMessage.includes("OpenAI is requiring a key") 
           ? "API key doesn't have access to this model. Try updating your key in settings." 
           : "Failed to send message. Please try again.",
         variant: "destructive"
@@ -142,7 +149,7 @@ export const Chat = () => {
             </div>
             <div>
               <h1 className="font-semibold text-foreground">AI Assistant</h1>
-              <p className="text-xs text-muted-foreground">Powered by OpenRouter</p>
+                             <p className="text-xs text-muted-foreground">Powered by Mistral via OpenRouter</p>
             </div>
           </div>
           
@@ -180,6 +187,44 @@ export const Chat = () => {
                     >
                       OpenRouter
                     </a>
+                    . Make sure your account has access to the selected model.
+                  </p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium">AI Model</label>
+                  <select
+                    value={tempModel}
+                    onChange={(e) => setTempModel(e.target.value)}
+                    className="mt-1 w-full px-3 py-2 border border-input bg-background rounded-md text-sm focus:outline-none focus:ring-ring focus:ring-offset-2"
+                  >
+                    <option value="deepseek/deepseek-r1:free">DeepSeek R1 (Free)</option>
+                    <option value="anthropic/claude-3-haiku:free">Claude 3 Haiku (Free)</option>
+                    <option value="meta-llama/llama-3.1-8b-instruct:free">Llama 3.1 8B (Free)</option>
+                    <option value="microsoft/phi-3-mini-4k-instruct:free">Phi-3 Mini (Free)</option>
+                    <option value="gpt-oss-20b:free">GPT-OSS 20B (Free)</option>
+                  </select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Select an AI model that your OpenRouter account supports.
+                  </p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium flex items-center gap-2">
+                    <Palette className="w-4 h-4" />
+                    Theme
+                  </label>
+                  <select
+                    value={currentTheme.id}
+                    onChange={(e) => setTheme(e.target.value)}
+                    className="mt-1 w-full px-3 py-2 border border-input bg-background rounded-md text-sm focus:outline-none focus:ring-ring focus:ring-offset-2"
+                  >
+                    {themes.map((theme) => (
+                      <option key={theme.id} value={theme.id}>
+                        {theme.name} - {theme.description}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Choose your preferred color theme for the interface.
                   </p>
                 </div>
                 <Button onClick={saveApiKey} className="w-full">
