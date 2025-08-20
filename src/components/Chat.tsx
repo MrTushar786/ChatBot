@@ -68,7 +68,7 @@ export const Chat = () => {
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          model: "gpt-4o-mini",
+          model: "gpt-oss-20b:free",
           messages: [
             {
               role: "system",
