@@ -2,7 +2,10 @@ import { useState, useRef, useEffect } from "react";
 import { ChatMessage } from "./ChatMessage";
 import { ChatInput } from "./ChatInput";
 import { useToast } from "@/hooks/use-toast";
-import { Bot, User } from "lucide-react";
+import { Bot, Settings, RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 interface Message {
   id: string;
@@ -11,18 +14,21 @@ interface Message {
   timestamp: Date;
 }
 
-const API_KEY = "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";
+const DEFAULT_API_KEY = "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";
 
 export const Chat = () => {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "welcome",
-      content: "Hello! I'm your AI assistant powered by GPT-5. How can I help you today?",
+      content: "Hello! I'm your AI assistant. How can I help you today?",
       isUser: false,
       timestamp: new Date()
     }
   ]);
   const [isLoading, setIsLoading] = useState(false);
+  const [apiKey, setApiKey] = useState(DEFAULT_API_KEY);
+  const [tempApiKey, setTempApiKey] = useState(DEFAULT_API_KEY);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
@@ -33,6 +39,30 @@ export const Chat = () => {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  const clearHistory = () => {
+    setMessages([
+      {
+        id: "welcome",
+        content: "Hello! I'm your AI assistant. How can I help you today?",
+        isUser: false,
+        timestamp: new Date()
+      }
+    ]);
+    toast({
+      title: "Success",
+      description: "Chat history cleared successfully."
+    });
+  };
+
+  const saveApiKey = () => {
+    setApiKey(tempApiKey);
+    setIsSettingsOpen(false);
+    toast({
+      title: "Success",
+      description: "API key updated successfully."
+    });
+  };
 
   const sendMessage = async (content: string) => {
     const userMessage: Message = {
@@ -49,13 +79,13 @@ export const Chat = () => {
       const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${API_KEY}`,
+          "Authorization": `Bearer ${apiKey}`,
           "HTTP-Referer": window.location.origin,
           "X-Title": "AI Chat Assistant",
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          model: "openai/gpt-5",
+          model: "gpt-4o-mini",
           messages: [
             {
               role: "system",
@@ -76,7 +106,8 @@ export const Chat = () => {
       });
 
       if (!response.ok) {
-        throw new Error(`API Error: ${response.status}`);
+        const errorData = await response.json();
+        throw new Error(errorData.error?.message || `API Error: ${response.status}`);
       }
 
       const data = await response.json();
@@ -92,9 +123,12 @@ export const Chat = () => {
       setMessages(prev => [...prev, aiMessage]);
     } catch (error) {
       console.error("Error sending message:", error);
+      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
       toast({
         title: "Error",
-        description: "Failed to send message. Please try again.",
+        description: errorMessage.includes("OpenAI is requiring a key") 
+          ? "API key doesn't have access to this model. Try updating your key in settings." 
+          : "Failed to send message. Please try again.",
         variant: "destructive"
       });
     } finally {
@@ -105,13 +139,69 @@ export const Chat = () => {
   return (
     <div className="flex flex-col h-screen bg-chat-bg">
       {/* Header */}
-      <div className="flex items-center gap-3 p-4 border-b border-border/20 bg-background/80 backdrop-blur-sm">
-        <div className="w-8 h-8 rounded-full bg-ai-gradient flex items-center justify-center">
-          <Bot className="w-4 h-4 text-white" />
+      <div className="flex items-center justify-between p-4 border-b border-border/20 bg-background/80 backdrop-blur-sm">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-full bg-ai-gradient flex items-center justify-center">
+            <Bot className="w-4 h-4 text-white" />
+          </div>
+          <div>
+            <h1 className="font-semibold text-foreground">AI Assistant</h1>
+            <p className="text-xs text-muted-foreground">Powered by OpenRouter</p>
+          </div>
         </div>
-        <div>
-          <h1 className="font-semibold text-foreground">AI Assistant</h1>
-          <p className="text-xs text-muted-foreground">Powered by GPT-5</p>
+        
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={clearHistory}
+            className="text-muted-foreground hover:text-foreground"
+          >
+            <RefreshCw className="w-4 h-4" />
+          </Button>
+          
+          <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
+            <DialogTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <Settings className="w-4 h-4" />
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Settings</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium">OpenRouter API Key</label>
+                  <Input
+                    type="password"
+                    value={tempApiKey}
+                    onChange={(e) => setTempApiKey(e.target.value)}
+                    placeholder="Enter your OpenRouter API key"
+                    className="mt-1"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Get your API key from{" "}
+                    <a 
+                      href="https://openrouter.ai/keys" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-primary hover:underline"
+                    >
+                      OpenRouter
+                    </a>
+                  </p>
+                </div>
+                <Button onClick={saveApiKey} className="w-full">
+                  Save Changes
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
