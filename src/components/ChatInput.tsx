@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Send, Loader2 } from "lucide-react";
+import { VoiceInput } from "./VoiceInput";
 import { cn } from "@/lib/utils";
 
 interface ChatInputProps {
@@ -27,20 +28,30 @@ export const ChatInput = ({ onSendMessage, isLoading }: ChatInputProps) => {
     }
   };
 
+  const handleVoiceTranscript = (transcript: string) => {
+    setMessage(prev => prev + (prev ? " " : "") + transcript);
+  };
+
   return (
     <div className="sticky bottom-0 bg-background/80 backdrop-blur-sm border-t border-border/20 p-4">
       <form onSubmit={handleSubmit} className="flex gap-2 max-w-4xl mx-auto">
-        <Input
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="Type your message..."
-          className={cn(
-            "flex-1 bg-message-bg border-border/20 focus:border-primary/50",
-            "focus:shadow-glow transition-all duration-200"
-          )}
-          disabled={isLoading}
-        />
+        <div className="flex-1 flex gap-2">
+          <Input
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Type your message..."
+            className={cn(
+              "flex-1 bg-message-bg border-border/20 focus:border-primary/50",
+              "focus:shadow-glow transition-all duration-200"
+            )}
+            disabled={isLoading}
+          />
+          <VoiceInput 
+            onTranscript={handleVoiceTranscript}
+            disabled={isLoading}
+          />
+        </div>
         <Button 
           type="submit" 
           disabled={!message.trim() || isLoading}
